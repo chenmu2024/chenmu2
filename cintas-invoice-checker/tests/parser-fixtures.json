@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "name": "modern-single-material-row",
+      "lines": [
+        "X10196 3X5 TRAFFIC MAT 01 F 1 12.690 12.69 N"
+      ],
+      "expect": {
+        "materialCode": "X10196",
+        "frequency": "01",
+        "exchange": "F",
+        "quantity": 1,
+        "unitPrice": 12.69,
+        "lineTotal": 12.69,
+        "taxFlag": "N"
+      }
+    },
+    {
+      "name": "high-quantity-towel-row",
+      "lines": [
+        "X2700 TERRY TOWEL - WHITE- 02 F 360 0.220 79.20 N"
+      ],
+      "expect": {
+        "materialCode": "X2700",
+        "frequency": "02",
+        "exchange": "F",
+        "quantity": 360,
+        "unitPrice": 0.22,
+        "lineTotal": 79.2,
+        "taxFlag": "N"
+      }
+    },
+    {
+      "name": "same-material-multiple-employee-rows",
+      "lines": [
+        "0011 X381 JEAN/CARHART/RELX FIT/DK DENIM-03430 01 F 11 0.314 3.45 N",
+        "0023 X381 JEAN/CARHART/RELX FIT/DK DENIM-04032 01 F 4 0.314 1.26 N"
+      ],
+      "expectAggregate": {
+        "materialCode": "X381",
+        "quantity": 15,
+        "unitPrice": 0.314,
+        "lineTotal": 4.71
+      }
+    },
+    {
+      "name": "service-charge",
+      "lines": [
+        "SERVICE CHARGE 8.21 N"
+      ],
+      "expect": {
+        "lineType": "service_fee",
+        "lineTotal": 8.21
+      }
+    },
+    {
+      "name": "special-program-breakdown-is-not-billable-again",
+      "pageLines": [
+        "SUBTOTAL 126.79",
+        "SERVICE CHARGE 9.11 N",
+        "TOTAL USD 135.90",
+        "SPECIAL PROGRAMS BREAKDOWN",
+        "UNIFORM ADVANTAGE 126 0.061 7.66 N"
+      ],
+      "expectExcludedAfterMarker": true
+    }
+  ]
+}
