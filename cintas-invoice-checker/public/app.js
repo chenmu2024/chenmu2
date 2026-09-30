@@ -181,6 +181,7 @@ function classify(description) {
 function normalizeDescription(value) {
   return value.toLowerCase()
     .replace(/\b(?:freq|exch|qty|quantity|unit price|line total|tax)\b/gi, ' ')
+    .replace(/\b[ynf]\b$/gi, ' ')
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -191,12 +192,39 @@ function parseLine(line) {
   if (SUMMARY_RE.test(lower) && !FEE_RE.test(lower)) return undefined;
   if (/\b(?:invoice|customer|account|sold to|bill to|ship to|route|page\s+\d+)\b/i.test(lower) && !FEE_RE.test(lower)) return undefined;
 
-  const moneyMatches = [...line.matchAll(MONEY_RE)].map((m) => ({ text: m[0], value: toNumber(m[0]), index: m.index ?? 0 }));
-  const isFee = FEE_RE.test(line);
-  if (!moneyMatches.length || (moneyMatches.length < 2 && !isFee)) return undefined;
-
   const materialMatch = line.match(MATERIAL_RE);
   const materialCode = materialMatch?.[0];
+  const isFee = FEE_RE.test(line);
+
+  // Modern Cintas rental/facility invoices commonly end rows with:
+  // FREQ EXCH QTY UNIT_PRICE LINE_TOTAL TAX.
+  // Parse that tail explicitly so quantity/frequency do not leak into the description key.
+  const structuredTail = line.match(/\s(0?[1-9]|1[0-2])\s+([A-Z])\s+(\d+)\s+(-?\$?\s*\d+(?:,\d{3})*\.\d{3,4})\s+(-?\$?\s*\d+(?:,\d{3})*\.\d{2})\s+([YN])\s*$/i);
+  if (materialCode && structuredTail) {
+    const materialIndex = line.indexOf(materialCode);
+    const descriptionStart = materialIndex + materialCode.length;
+    const description = line.slice(descriptionStart, structuredTail.index).replace(/\s+/g, ' ').trim();
+    if (description.length >= 2) {
+      return {
+        materialCode,
+        description,
+        normalizedDescription: normalizeDescription(description),
+        frequency: structuredTail[1].padStart(2, '0'),
+        exchange: structuredTail[2].toUpperCase(),
+        quantity: Number(structuredTail[3]),
+        unitPrice: toNumber(structuredTail[4]),
+        lineTotal: toNumber(structuredTail[5]),
+        taxFlag: structuredTail[6].toUpperCase(),
+        lineType: classify(description),
+        confidence: 0.99,
+        raw: line
+      };
+    }
+  }
+
+  const moneyMatches = [...line.matchAll(MONEY_RE)].map((m) => ({ text: m[0], value: toNumber(m[0]), index: m.index ?? 0 }));
+  if (!moneyMatches.length || (moneyMatches.length < 2 && !isFee)) return undefined;
+
   const last = moneyMatches.at(-1)?.value;
   const previous = moneyMatches.at(-2)?.value;
   let lineTotal = last;
@@ -215,11 +243,11 @@ function parseLine(line) {
     description = description.slice(0, match.index) + ' ' + description.slice(match.index + match.text.length);
   }
   if (materialCode) description = description.replace(materialCode, ' ');
-  description = description.replace(/\s+/g, ' ').trim();
+  description = description.replace(/\s+[YN]\s*$/i, ' ').replace(/\s+/g, ' ').trim();
   if (description.length < 2) return undefined;
 
   const lineType = classify(description);
-  const confidence = materialCode && Number.isFinite(lineTotal) ? 0.96 : isFee && Number.isFinite(lineTotal) ? 0.93 : 0.80;
+  const confidence = materialCode && Number.isFinite(lineTotal) ? 0.94 : isFee && Number.isFinite(lineTotal) ? 0.93 : 0.80;
   return {
     materialCode,
     description,
@@ -234,7 +262,9 @@ function parseLine(line) {
 }
 
 function stableKey(line) {
-  if (line.materialCode) return `material:${line.materialCode.toLowerCase()}|${line.normalizedDescription.slice(0, 42)}`;
+  // Material-level aggregation is deliberately conservative: repeated employee rows
+  // with the same material are combined instead of being mistaken for new/removed items.
+  if (line.materialCode) return `material:${line.materialCode.toLowerCase()}`;
   return `type:${line.lineType}|${line.normalizedDescription.slice(0, 64)}`;
 }
 
@@ -260,6 +290,7 @@ function aggregateLines(lines) {
       normalizedDescription: representative.normalizedDescription,
       lineType: representative.lineType,
       lineCount: group.length,
+      frequency: [...new Set(group.map((x) => x.frequency).filter(Boolean))].length === 1 ? group.find((x) => x.frequency)?.frequency : undefined,
       quantity: quantities.length ? quantities.reduce((a, b) => a + b, 0) : undefined,
       unitPrice: uniquePrices.length === 1 ? uniquePrices[0] : undefined,
       lineTotal: totals.length ? round(totals.reduce((a, b) => a + b, 0), 4) : undefined,
@@ -280,7 +311,19 @@ function parseInvoice(filename, pdf) {
   const invoiceDate = parseDate(lines);
   const invoiceNumber = parseInvoiceNumber(lines);
   const total = moneyAfter(lines, [/\btotal due\b/i, /\binvoice total\b/i, /^\s*total\s+/i, /\bamount due\b/i]);
-  const parsedLines = lines.map(parseLine).filter(Boolean);
+  const parsedLines = [];
+  for (const pageLines of pdf.pages) {
+    let inProgramBreakdown = false;
+    for (const line of pageLines) {
+      if (/special programs breakdown/i.test(line)) {
+        inProgramBreakdown = true;
+        continue;
+      }
+      if (inProgramBreakdown) continue;
+      const parsed = parseLine(line);
+      if (parsed) parsedLines.push(parsed);
+    }
+  }
   const aggregated = aggregateLines(parsedLines);
   const notices = detectNotices(lines);
   const warnings = [];
@@ -388,6 +431,18 @@ function compare(first, second) {
         newValue: current.lineTotal,
         percentChange: percentChange(prior.lineTotal, current.lineTotal),
         annualizedImpact: round(delta * 52),
+        confidence: Math.min(prior.confidence, current.confidence),
+        key
+      });
+    }
+
+    if (prior.frequency && current.frequency && prior.frequency !== current.frequency) {
+      findings.push({
+        type: 'FREQUENCY_CHANGED',
+        title: 'Service frequency changed',
+        description: current.description,
+        oldValue: prior.frequency,
+        newValue: current.frequency,
         confidence: Math.min(prior.confidence, current.confidence),
         key
       });
