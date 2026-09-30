@@ -13,7 +13,25 @@
 <a class="back-link" href="/">← Back to checker</a>
 <span class="eyebrow">Cintas bill increase guide</span>
 <h1>Why did my Cintas bill go up?</h1>
-<p>When two weekly invoices look almost identical, a higher total can come from several different changes. The fastest first step is not to decide whether the increase is justified. It is to identify exactly what changed.</p>
+<p>When two recurring invoices look almost identical, a higher total can come from several different changes. The fastest first step is not to decide whether the increase is justified. It is to identify exactly what changed.</p>
+
+<section class="calculator-card" aria-labelledby="calculator-title">
+  <span class="eyebrow">Free calculator</span>
+  <h2 id="calculator-title">Estimate the size of your bill increase</h2>
+  <p>Enter the old and new recurring invoice totals. This calculator only measures the arithmetic change; it does not determine why the bill changed.</p>
+  <div class="calculator-grid">
+    <label>Previous bill<input id="calc-old" type="number" min="0" step="0.01" inputmode="decimal" placeholder="180.00"></label>
+    <label>Current bill<input id="calc-new" type="number" min="0" step="0.01" inputmode="decimal" placeholder="220.00"></label>
+    <label>Billing frequency<select id="calc-frequency"><option value="52">Weekly</option><option value="26">Every 2 weeks</option><option value="12">Monthly</option></select></label>
+  </div>
+  <button class="primary-button calculator-button" id="calculate-increase" type="button">Calculate increase</button>
+  <div class="calculator-result" id="calculator-result" hidden aria-live="polite">
+    <div><span>Difference per bill</span><strong id="calc-difference">—</strong></div>
+    <div><span>Percentage change</span><strong id="calc-percent">—</strong></div>
+    <div><span>Annualized difference</span><strong id="calc-annual">—</strong></div>
+  </div>
+  <p class="calculator-note">Annualized figures simply multiply the recurring difference by the selected billing frequency. They are estimates, not a prediction that the charge will remain unchanged.</p>
+</section>
 
 <h2>1. Compare the printed invoice total</h2>
 <p>Start with the older and newer invoice totals. This tells you the size of the change but not the cause. If a weekly bill moves from $180 to $220, the annualized difference is roughly $2,080 if that difference continues for 52 weeks.</p>
@@ -38,4 +56,29 @@
 <div class="cta-panel"><h2>Compare two Cintas invoices</h2><p>No account is required for the two-invoice validation tool.</p><a href="/#checker">Check my bills →</a></div>
 </main>
 <footer><div class="brand"><span class="brand-mark">C</span><span>InvoiceChecker</span></div><p>Independent tool. Not affiliated with Cintas Corporation.</p><div class="footer-links"><a href="/privacy/">Privacy</a><span>© 2026</span></div></footer>
+<script>
+const oldInput=document.getElementById('calc-old');
+const newInput=document.getElementById('calc-new');
+const frequency=document.getElementById('calc-frequency');
+const result=document.getElementById('calculator-result');
+const usd=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'});
+document.getElementById('calculate-increase').addEventListener('click',()=>{
+  const oldValue=Number(oldInput.value);
+  const newValue=Number(newInput.value);
+  if(!Number.isFinite(oldValue)||!Number.isFinite(newValue)||oldValue<=0||newValue<0){
+    result.hidden=false;
+    document.getElementById('calc-difference').textContent='Enter valid amounts';
+    document.getElementById('calc-percent').textContent='—';
+    document.getElementById('calc-annual').textContent='—';
+    return;
+  }
+  const difference=newValue-oldValue;
+  const percent=(difference/oldValue)*100;
+  const annual=difference*Number(frequency.value);
+  document.getElementById('calc-difference').textContent=(difference>0?'+':'')+usd.format(difference);
+  document.getElementById('calc-percent').textContent=(percent>0?'+':'')+percent.toFixed(1)+'%';
+  document.getElementById('calc-annual').textContent=(annual>0?'+':'')+usd.format(annual);
+  result.hidden=false;
+});
+</script>
 </body></html>
