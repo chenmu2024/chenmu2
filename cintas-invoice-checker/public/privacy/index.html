@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy — Cintas Invoice Checker</title>
+<meta name="description" content="How Cintas Invoice Checker handles invoice PDFs and browser-side processing.">
+<meta name="robots" content="index,follow"><link rel="canonical" href="https://cintas-invoice-checker.pages.dev/privacy/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="site-header"><a class="brand" href="/"><span class="brand-mark">C</span><span>InvoiceChecker</span></a><a class="header-cta" href="/#checker">Check my bill</a></header>
+<main class="content-page">
+<a class="back-link" href="/">← Back to checker</a>
+<span class="eyebrow">Privacy</span>
+<h1>Source invoice PDFs stay in your browser.</h1>
+<p>This validation version is designed so the PDF files you select are read by JavaScript running in your browser. The source invoice PDFs are not intentionally uploaded to an application server for analysis.</p>
+
+<div class="callout"><strong>Plain-English version:</strong> when you choose two invoice PDFs, the comparison runs on your device. Refreshing or closing the page clears the current comparison state.</div>
+
+<h2>What is processed locally</h2>
+<p>The browser reads text from the PDFs, attempts to identify invoice dates, totals, line items and recurring fees, and compares the two normalized invoice structures. The resulting comparison is kept in page memory for the current session.</p>
+
+<h2>What may still reach infrastructure providers</h2>
+<p>Like most websites, ordinary web requests can expose technical metadata such as IP address, browser type, requested URL and timestamps to the hosting provider. This site is hosted on Cloudflare Pages. PDF.js is loaded from jsDelivr, so the browser also makes a normal request to that CDN for the software library. The invoice file itself is not intentionally sent with those requests.</p>
+
+<h2>Analytics</h2>
+<p>This validation version does not use third-party analytics that read invoice contents. Product events may be added later, but invoice text and line-item values should not be included in analytics payloads.</p>
+
+<h2>Important limitation</h2>
+<p>Browser-side processing reduces server-side document exposure, but it does not make the website a regulated document vault. Do not use the checker for material that you are not authorized to process.</p>
+
+<h2>Independent tool</h2>
+<p>Cintas Invoice Checker is an independent comparison tool and is not affiliated with, endorsed by, or sponsored by Cintas Corporation. Cintas is a trademark of its respective owner.</p>
+
+<div class="cta-panel"><h2>Ready to compare two invoices?</h2><p>Use original digital PDFs for the best extraction quality.</p><a href="/#checker">Open the free checker →</a></div>
+</main>
+<footer><div class="brand"><span class="brand-mark">C</span><span>InvoiceChecker</span></div><p>Independent invoice comparison tool.</p><div class="footer-links"><a href="/">Home</a><span>© 2026</span></div></footer>
+</body></html>
