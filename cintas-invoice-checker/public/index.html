@@ -3,22 +3,51 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Cintas Invoice Checker — See What Changed on Your Bill</title>
-  <meta name="description" content="Compare two Cintas invoice PDFs and instantly see bill, price, quantity and recurring-charge changes. Files are processed in your browser." />
-  <meta name="robots" content="index,follow" />
+  <title>Cintas Invoice Checker — Compare Bills for Price & Fee Changes</title>
+  <meta name="description" content="Compare two Cintas invoice PDFs in your browser. See bill-total, unit-price, quantity, fee and recurring-item changes without uploading source PDFs to our server." />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
   <meta name="theme-color" content="#f4f5ef" />
   <meta property="og:title" content="Cintas Invoice Checker" />
   <meta property="og:description" content="Upload two Cintas invoices. See exactly what changed." />
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://cintas-invoice-checker.pages.dev/" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="canonical" href="https://cintas-invoice-checker.pages.dev/" />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/styles.css" />
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"SoftwareApplication",
+    "name":"Cintas Invoice Checker",
+    "applicationCategory":"BusinessApplication",
+    "operatingSystem":"Web",
+    "offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},
+    "description":"Browser-based comparison tool for checking changes between two Cintas invoice PDFs.",
+    "url":"https://cintas-invoice-checker.pages.dev/",
+    "isAccessibleForFree":true
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"FAQPage",
+    "mainEntity":[
+      {"@type":"Question","name":"Does this tell me Cintas overcharged me?","acceptedAnswer":{"@type":"Answer","text":"No. The checker identifies objective changes between invoices. Whether a charge is permitted can depend on your service agreement, amendments or service changes."}},
+      {"@type":"Question","name":"Do you store my invoices?","acceptedAnswer":{"@type":"Answer","text":"The validation version parses source PDFs in your browser and does not intentionally upload those source PDFs to our server."}},
+      {"@type":"Question","name":"What files work best?","acceptedAnswer":{"@type":"Answer","text":"Original digital invoice PDFs with selectable text work best. Scans and phone photos are not supported in this validation version."}}
+    ]
+  }
+  </script>
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="#top"><span class="brand-mark">C</span><span>InvoiceChecker</span></a>
-    <nav>
+    <a class="brand" href="#top" aria-label="Cintas Invoice Checker home"><span class="brand-mark">C</span><span>InvoiceChecker</span><span class="beta-badge">BETA</span></a>
+    <nav aria-label="Primary navigation">
       <a href="#how-it-works">How it works</a>
-      <a href="#privacy">Privacy</a>
+      <a href="/cintas-bill-increase/">Bill increases</a>
+      <a href="/privacy/">Privacy</a>
       <a href="#faq">FAQ</a>
     </nav>
     <a class="header-cta" href="#checker">Check my bill</a>
@@ -29,18 +58,19 @@
       <div class="hero-copy">
         <div class="hero-kicker"><span></span> Free Cintas invoice comparison</div>
         <h1>See what changed on your <em>Cintas bill.</em></h1>
-        <p class="hero-lead">Upload two invoice PDFs. Instantly compare total spend, unit prices, quantities and recurring fees — without sending your files to a server.</p>
-        <div class="trust-row">
-          <div><strong>100%</strong><span>browser-based</span></div>
+        <p class="hero-lead">Upload two digital invoice PDFs. Compare total spend, unit prices, quantities and recurring fees — directly in your browser.</p>
+        <div class="trust-row" aria-label="Product benefits">
+          <div><strong>Local</strong><span>PDF processing</span></div>
           <div><strong>$0</strong><span>for 2 invoices</span></div>
           <div><strong>No</strong><span>account required</span></div>
         </div>
+        <p class="micro-trust">Independent tool · Not affiliated with Cintas Corporation · No contract required to start</p>
       </div>
 
       <div class="checker-card" id="checker">
         <div class="checker-head">
           <div><span class="status-dot"></span><strong>Compare two invoices</strong></div>
-          <span class="privacy-chip">Files stay on your device</span>
+          <span class="privacy-chip">Source PDFs stay on your device</span>
         </div>
 
         <label class="upload-card" id="older-card">
@@ -59,9 +89,13 @@
           <span class="small-button">Choose PDF</span>
         </label>
 
-        <div class="inline-error" id="global-error" hidden></div>
+        <div class="analysis-progress" id="analysis-progress" hidden aria-live="polite">
+          <span class="spinner"></span><span id="analysis-status">Reading invoices…</span>
+        </div>
+        <div class="inline-error" id="global-error" hidden role="alert"></div>
         <button class="primary-button full" id="compare-button" disabled>Compare my bills <span>→</span></button>
         <button class="demo-link" id="demo-button" type="button">No invoice handy? See a demo result</button>
+        <p class="checker-footnote">Best results: original digital PDFs downloaded from your billing portal. Maximum 15 MB each.</p>
       </div>
     </section>
 
@@ -72,14 +106,17 @@
           <h2 id="results-title">Your Cintas bill has changes</h2>
           <p>Changes below are based only on the two invoices you provided.</p>
         </div>
-        <button class="secondary-button" id="reset-button">Compare another pair</button>
+        <div class="results-actions">
+          <button class="secondary-button" id="copy-summary" hidden>Copy summary</button>
+          <button class="secondary-button" id="reset-button">Compare another pair</button>
+        </div>
       </div>
 
       <div class="metric-grid">
         <article class="metric-card"><span>Older invoice</span><strong id="metric-old">—</strong><small id="metric-old-date">—</small></article>
         <article class="metric-card"><span>Newer invoice</span><strong id="metric-new">—</strong><small id="metric-new-date">—</small></article>
         <article class="metric-card accent" id="difference-card"><span>Difference</span><strong id="metric-diff">—</strong><small id="metric-pct">—</small></article>
-        <article class="metric-card"><span>Annualized*</span><strong id="metric-annual">—</strong><small>If this is a weekly recurring bill</small></article>
+        <article class="metric-card"><span>Annualized*</span><strong id="metric-annual">—</strong><small>Assumes a weekly recurring bill</small></article>
       </div>
 
       <div class="summary-strip">
@@ -100,8 +137,8 @@
       </div>
 
       <div class="upgrade-card">
-        <div><span class="eyebrow">Next step</span><h3>Want to see when the changes started?</h3><p>Historical Scan will compare up to 12 months of invoices and build a price-and-fee timeline. This paid feature is being validated before launch.</p></div>
-        <button class="primary-button" id="early-access">Join early access</button>
+        <div><span class="eyebrow">Next product step</span><h3>Historical invoice scan</h3><p>The next version will compare up to 12 months of invoices to show when price and fee changes started. We will only add paid functionality after the two-invoice checker proves useful.</p></div>
+        <a class="text-link" href="/cintas-invoice-audit/">How invoice auditing works →</a>
       </div>
       <p class="disclaimer">*Annualized amounts are simple estimates based on a 52-week recurring schedule. This tool identifies billing changes and potential discrepancies. It does not determine whether a charge violates an agreement and does not provide legal, accounting, or contractual advice.</p>
     </section>
@@ -111,14 +148,27 @@
       <div class="steps-grid">
         <article><span>01</span><h3>Upload two PDFs</h3><p>Use original digital Cintas invoice PDFs for the most reliable extraction.</p></article>
         <article><span>02</span><h3>We normalize the lines</h3><p>Material codes, quantities, unit prices and recurring charges are converted into comparable fields.</p></article>
-        <article><span>03</span><h3>See the dollar changes</h3><p>The result highlights what changed, when possible, without calling a change an overcharge.</p></article>
+        <article><span>03</span><h3>See the dollar changes</h3><p>The result highlights objective changes first. A price increase is not automatically labeled an overcharge.</p></article>
+      </div>
+    </section>
+
+    <section class="evidence-section">
+      <div class="evidence-copy">
+        <span class="eyebrow">What the checker can flag</span>
+        <h2>Changes that are easy to miss when invoices look almost identical.</h2>
+      </div>
+      <div class="evidence-grid">
+        <article><strong>Unit price drift</strong><p>The same recurring item appears at a different unit price.</p></article>
+        <article><strong>Fee changes</strong><p>Service, environmental, fuel or other recurring fees change between periods.</p></article>
+        <article><strong>New line items</strong><p>A recurring charge appears on the newer invoice but not the older one.</p></article>
+        <article><strong>Quantity changes</strong><p>The billable quantity changes even when the item itself looks familiar.</p></article>
       </div>
     </section>
 
     <section class="privacy-section" id="privacy">
       <div class="privacy-card">
         <div class="lock">⌁</div>
-        <div><span class="eyebrow">Privacy by design</span><h2>Your invoice PDFs are processed in your browser.</h2><p>This V0 does not upload the source PDFs to our server. Closing or refreshing the page clears the comparison state. We also avoid analytics that read invoice contents.</p></div>
+        <div><span class="eyebrow">Privacy by design</span><h2>Your source invoice PDFs are processed in your browser.</h2><p>The validation version does not intentionally upload source invoice PDFs to our server. Closing or refreshing the page clears the comparison state. Read the full <a href="/privacy/">privacy explanation</a>.</p></div>
       </div>
     </section>
 
@@ -127,7 +177,8 @@
       <div class="faq-grid">
         <details open><summary>Does this tell me Cintas overcharged me?</summary><p>No. It identifies objective changes between invoices. Whether a charge is permitted may depend on your service agreement, amendments or service changes.</p></details>
         <details><summary>What files work best?</summary><p>Original digital invoice PDFs with selectable text. Scans and phone photos are not supported in this validation version.</p></details>
-        <details><summary>Do you store my invoices?</summary><p>Not in this V0. The source PDFs are parsed locally in your browser and are not intentionally transmitted to our server.</p></details>
+        <details><summary>Do you store my invoices?</summary><p>The source PDFs are parsed locally in your browser and are not intentionally transmitted to our server in this validation version.</p></details>
+        <details><summary>What does “parser confidence” mean?</summary><p>It is a product-quality signal based on whether core invoice fields were identified consistently. It is not a guarantee that every line was read perfectly, so important findings should still be checked against the original invoice.</p></details>
         <details><summary>Is this affiliated with Cintas?</summary><p>No. This is an independent comparison tool and is not affiliated with, endorsed by, or sponsored by Cintas Corporation.</p></details>
       </div>
     </section>
@@ -136,7 +187,7 @@
   <footer>
     <div class="brand"><span class="brand-mark">C</span><span>InvoiceChecker</span></div>
     <p>Independent invoice comparison tool. Not affiliated with Cintas Corporation.</p>
-    <span>© 2026</span>
+    <div class="footer-links"><a href="/privacy/">Privacy</a><a href="/cintas-invoice-audit/">Invoice audit guide</a><span>© 2026</span></div>
   </footer>
 
   <script type="module" src="/app.js"></script>
